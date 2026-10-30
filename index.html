@@ -2271,8 +2271,18 @@ VIEWS.respaldo = async (body) => {
     ${DB.persistent ? '' : '<div class="note warn">Este navegador no permite guardar datos: al cerrar la pestaña se pierden. Descarga un respaldo antes.</div>'}
     <div class="actions"><button class="btn primary" id="bkDown">Descargar respaldo (.json)</button><label class="btn">Restaurar respaldo<input type="file" id="bkUp" accept=".json,application/json" hidden></label></div>
     <div class="section-title"><h3>Zona de prueba</h3></div>
-    <div class="actions"><button class="btn" id="bkSeed">Cargar red de ejemplo (11 estaciones)</button></div>`;
+    <div class="actions"><button class="btn" id="bkSeed">Cargar red de ejemplo (11 estaciones)</button><button class="btn danger" id="bkUnseed">Quitar red de ejemplo</button></div>
+    <p class="small muted" style="margin:0">Quitar la red de ejemplo borra solo las estaciones marcadas como ejemplo y sus datos. Las estaciones que ustedes crearon y las cuentas se conservan.</p>`;
   $('#bkSeed').onclick = seedDemo;
+  $('#bkUnseed').onclick = async () => {
+    const demo = S.stations.filter((x) => x.demo);
+    if (!demo.length) { toast('No hay estaciones de ejemplo cargadas.'); return; }
+    if (!await confirmar('Quitar red de ejemplo', `Se borrarán las ${demo.length} estaciones de ejemplo y sus datos. Sus propias estaciones no se tocan.`, 'Quitar')) return;
+    for (const st of demo) { await DB.delByStation('readings', st.id); await DB.delByStation('imports', st.id); await DB.del('stations', st.id); }
+    await log('Quitó la red de ejemplo', `${demo.length} estaciones`);
+    await loadStations(); toast(`Se quitaron ${demo.length} estaciones de ejemplo.`);
+    S.view = [['lista']]; await render(); fitNetwork();
+  };
   $('#bkDown').onclick = async () => {
     const data = { app: 'rdc', version: 1, at: Date.now(), stations: await DB.all('stations'), readings: await DB.all('readings'), imports: await DB.all('imports'), log: await DB.all('log') };
     download(`rdc-respaldo-${fmtFecha(Date.now()).replace(/[ :]/g, '-')}.json`, JSON.stringify(data), 'application/json');
